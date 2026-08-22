@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdmx-phrase-lab"
+version = "0.1.0"
+description = "PDMX Phrase Lab: phrase extraction, embeddings, and listening tools"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "music21",
+  "numpy",
+  "pandas<3",
+  "pyarrow",
+  "scipy",
+  "scikit-learn",
+  "pretty_midi",
+  "mido",
+  "faiss-cpu",
+  "gradio",
+  "matplotlib",
+  "requests",
+  "tqdm",
+  "pyyaml",
+  "joblib",
+  "soundfile",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["phrase_lab*"]

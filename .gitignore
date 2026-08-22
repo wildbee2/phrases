@@ -1,0 +1,17 @@
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+*.pyo
+*.pyd
+dist/
+build/
+*.egg-info/
+data/raw/
+data/extracted/
+data/index/
+data/reviews/
+.ipynb_checkpoints/
+.venv/
+.env/

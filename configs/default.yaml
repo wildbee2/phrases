@@ -1,0 +1,50 @@
+pdmx:
+  zenodo_record_id: 15571083
+  root: data/raw/PDMX
+  subset: safe_deduplicated
+  max_scores: 10000
+  sampling: random
+  random_seed: 42
+
+extraction:
+  workers: 2
+  skip_percussion: true
+  min_notes_per_line: 12
+  melody_modes:
+    - explicit_voice
+    - skyline
+
+segmentation:
+  min_bars: 1.5
+  preferred_bars: 4.0
+  soft_max_bars: 8.0
+  hard_max_bars: 12.0
+  min_notes: 4
+  boundary_threshold: 0.0
+  boundary_weights:
+    rest_before: 2.5
+    agogic_before: 1.2
+    metric_strength: 0.7
+    leap_after: 0.5
+    contour_change: 0.4
+    cadence: 1.0
+    slur_end: 1.8
+    section_marker: 2.2
+
+features:
+  contour_steps: 32
+  rhythm_steps: 32
+  interval_clip: 12
+  pca_dimensions: 64
+  pca_fit_sample: 200000
+
+index:
+  exact_index_max_phrases: 500000
+  hnsw_m: 32
+
+app:
+  neighbors: 10
+  search_oversample: 8
+  audio_sample_rate: 22050
+  default_bpm: 100
+
