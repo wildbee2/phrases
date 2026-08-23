@@ -43,10 +43,19 @@ def mine_positive_pairs(root: str | Path, cfg: dict[str, Any]) -> pd.DataFrame:
     if "split" not in phrases.columns:
         raise KeyError("prepared dataset split labels are required before mining positives")
     embeddings = load_embeddings(root / "index")
-    ids = list(embeddings["phrase_ids"])
+    ids = np.asarray(embeddings["phrase_ids"], dtype=str)
     vecs = embeddings[cfg["positive_mining"]["baseline_space"]]
-    rows = phrases.set_index("phrase_id").loc[ids].reset_index()
-    phrases = rows
+    phrases = phrases.copy()
+    phrases["phrase_id"] = phrases["phrase_id"].astype(str)
+    aligned = phrases.set_index("phrase_id").reindex(ids)
+    present = aligned["split"].notna()
+    if not bool(present.any()):
+        raise ValueError("no phrase ids overlap between the prepared dataset and the embedding index")
+    if not bool(present.all()):
+        ids = ids[present.to_numpy()]
+        vecs = vecs[present.to_numpy()]
+        aligned = aligned.loc[present]
+    phrases = aligned.reset_index()
     mined: list[dict[str, Any]] = []
     top_k = int(cfg["positive_mining"]["reciprocal_top_k"])
     minimum_similarity = float(cfg["positive_mining"]["minimum_similarity"])
