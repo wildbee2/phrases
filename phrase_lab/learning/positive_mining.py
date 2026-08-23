@@ -47,6 +47,7 @@ def mine_positive_pairs(root: str | Path, cfg: dict[str, Any]) -> pd.DataFrame:
     vecs = embeddings[cfg["positive_mining"]["baseline_space"]]
     phrases = phrases.copy()
     phrases["phrase_id"] = phrases["phrase_id"].astype(str)
+    phrases = phrases.drop_duplicates(subset=["phrase_id"], keep="first").copy()
     aligned = phrases.set_index("phrase_id").reindex(ids)
     present = aligned["split"].notna()
     if not bool(present.any()):
