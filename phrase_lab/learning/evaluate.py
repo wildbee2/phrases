@@ -81,9 +81,9 @@ def build_evaluation_artifacts(root: str | Path, run_id: str, cfg: dict[str, Any
             a = str(pair["phrase_id_a"])
             b = str(pair["phrase_id_b"])
             if learned_backend.contains(a) and learned_backend.contains(b):
-                idx_a = int(np.flatnonzero(learned_backend.embeddings["phrase_ids"].astype(str) == a)[0])
-                idx_b = int(np.flatnonzero(learned_backend.embeddings["phrase_ids"].astype(str) == b)[0])
-                pos_sim = float(np.dot(learned_backend.embeddings["learned"][idx_a], learned_backend.embeddings["learned"][idx_b]))
+                idx_a = learned_backend.id_to_index[a]
+                idx_b = learned_backend.id_to_index[b]
+                pos_sim = float(np.dot(learned_backend.embeddings[idx_a], learned_backend.embeddings[idx_b]))
                 positive_rows.append({"phrase_id_a": a, "phrase_id_b": b, "similarity": pos_sim, "split": pair["split"]})
     if positive_rows:
         pd.DataFrame(positive_rows).to_parquet(eval_dir / "positive_pair_retrieval.parquet", index=False)
