@@ -1,0 +1,82 @@
+experiment:
+  name: "002_contrastive_encoder"
+  seed: 42
+
+dataset:
+  extraction_modes:
+    - explicit_voice
+  require_no_license_conflict: true
+  min_notes: 6
+  max_notes: 96
+  min_bars: 1.0
+  max_bars: 12.0
+  max_phrases: null
+  sampling: random
+
+split:
+  train_fraction: 0.90
+  val_fraction: 0.05
+  test_fraction: 0.05
+  split_unit: score_id
+  seed: 42
+
+tokenizer:
+  max_notes: 96
+  relative_pitch_clip: 48
+  interval_clip: 24
+  onset_bins: 128
+  duration_bins: 64
+  ioi_bins: 64
+
+augmentation:
+  note_mask_probability: 0.10
+  feature_mask_probability: 0.05
+  timing_jitter_probability: 0.15
+  duration_jitter_probability: 0.15
+  ornament_dropout_probability: 0.05
+
+positive_mining:
+  enabled: true
+  baseline_space: melody
+  minimum_similarity: 0.92
+  reciprocal_top_k: 3
+  min_length_ratio: 0.75
+  max_length_ratio: 1.33
+  same_part_only: true
+  max_pairs_per_phrase: 2
+
+model:
+  d_model: 256
+  n_layers: 6
+  n_heads: 8
+  ff_multiplier: 4
+  dropout: 0.10
+  embedding_dim: 128
+  max_notes: 96
+
+training:
+  epochs: 20
+  batch_size: 128
+  gradient_accumulation_steps: 1
+  learning_rate: 0.0003
+  min_learning_rate: 0.00001
+  weight_decay: 0.0001
+  temperature: 0.07
+  mined_positive_probability: 0.30
+  num_workers: 2
+  amp: true
+  gradient_clip_norm: 1.0
+  early_stopping_patience: 4
+  checkpoint_every_epochs: 1
+
+evaluation:
+  fixed_query_count: 100
+  neighbors: 10
+  exclude_same_score: true
+  formal_candidate_scope: test
+  baseline_space: combined
+  human_primary_neighbors: 5
+
+index:
+  exact_index_max_phrases: 500000
+  hnsw_m: 32

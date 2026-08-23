@@ -257,6 +257,72 @@ def cmd_inspect(args):
     out.write_text("\n".join(html), encoding="utf-8")
 
 
+def _load_experiment_config(path: str | Path | None):
+    from phrase_lab.config import load_config
+
+    return load_config(path)
+
+
+def cmd_prepare_encoder_data(args):
+    from phrase_lab.learning.prepare import prepare_encoder_dataset
+
+    cfg = _load_experiment_config(args.experiment_config)
+    prepare_encoder_dataset(args.root, cfg, max_phrases=args.max_phrases)
+
+
+def cmd_mine_encoder_positives(args):
+    from phrase_lab.learning.positive_mining import mine_positive_pairs
+
+    cfg = _load_experiment_config(args.experiment_config)
+    mine_positive_pairs(args.root, cfg)
+
+
+def cmd_train_encoder(args):
+    from phrase_lab.learning.train import train_encoder
+    from phrase_lab.config import merge_cli_overrides
+
+    cfg = _load_experiment_config(args.experiment_config)
+    cfg = merge_cli_overrides(
+        cfg,
+        {k: v for k, v in {
+            "training.epochs": args.epochs,
+            "training.batch_size": args.batch_size,
+            "training.learning_rate": args.learning_rate,
+            "training.min_learning_rate": args.min_learning_rate,
+            "training.weight_decay": args.weight_decay,
+            "training.temperature": args.temperature,
+            "training.mined_positive_probability": args.mined_positive_probability,
+            "training.gradient_accumulation_steps": args.gradient_accumulation_steps,
+            "training.gradient_clip_norm": args.gradient_clip_norm,
+            "training.early_stopping_patience": args.early_stopping_patience,
+            "training.amp": args.amp,
+        }.items() if v is not None},
+    )
+    train_encoder(args.root, cfg, run_id=args.run_id, resume=args.resume, max_train_batches=args.max_train_batches)
+
+
+def cmd_build_learned_index(args):
+    from phrase_lab.index.learned_index import build_learned_index
+
+    build_learned_index(args.root, args.run_id, batch_size=args.batch_size)
+
+
+def cmd_evaluate_encoder(args):
+    from phrase_lab.learning.evaluate import build_evaluation_artifacts
+    from phrase_lab.index.learned_index import build_learned_index
+
+    cfg = _load_experiment_config(args.experiment_config)
+    build_learned_index(args.root, args.run_id, batch_size=args.batch_size)
+    build_evaluation_artifacts(args.root, args.run_id, cfg)
+
+
+def cmd_summarize_encoder_evaluation(args):
+    from phrase_lab.learning.evaluate import summarize_blind_votes
+
+    cfg = _load_experiment_config(args.experiment_config) if args.experiment_config else None
+    summarize_blind_votes(args.root, args.run_id, cfg)
+
+
 def build_parser():
     p = argparse.ArgumentParser(prog="phrase_lab")
     p.add_argument("--config", default="configs/default.yaml")
@@ -279,6 +345,31 @@ def build_parser():
     sub.choices["build-index"].add_argument("--phrases", default=None)
     sub.choices["pipeline"].add_argument("--phrases", default=None)
     sub.choices["app"].add_argument("--share", action="store_true")
+    for name in ["prepare-encoder-data", "mine-encoder-positives", "train-encoder", "build-learned-index", "evaluate-encoder", "summarize-encoder-evaluation"]:
+        sp = sub.add_parser(name)
+        sp.add_argument("--root", default="data/raw/PDMX")
+    for nm in ["prepare-encoder-data", "mine-encoder-positives", "train-encoder", "evaluate-encoder", "summarize-encoder-evaluation"]:
+        sub.choices[nm].add_argument("--experiment-config", default="experiments/002_contrastive_encoder/config.yaml")
+    sub.choices["prepare-encoder-data"].add_argument("--max-phrases", type=int, default=None)
+    sub.choices["train-encoder"].add_argument("--run-id", default=None)
+    sub.choices["train-encoder"].add_argument("--resume", action="store_true")
+    sub.choices["train-encoder"].add_argument("--max-train-batches", type=int, default=None)
+    sub.choices["train-encoder"].add_argument("--epochs", type=int, default=None)
+    sub.choices["train-encoder"].add_argument("--batch-size", type=int, default=None)
+    sub.choices["train-encoder"].add_argument("--learning-rate", type=float, default=None)
+    sub.choices["train-encoder"].add_argument("--min-learning-rate", type=float, default=None)
+    sub.choices["train-encoder"].add_argument("--weight-decay", type=float, default=None)
+    sub.choices["train-encoder"].add_argument("--temperature", type=float, default=None)
+    sub.choices["train-encoder"].add_argument("--mined-positive-probability", type=float, default=None)
+    sub.choices["train-encoder"].add_argument("--gradient-accumulation-steps", type=int, default=None)
+    sub.choices["train-encoder"].add_argument("--gradient-clip-norm", type=float, default=None)
+    sub.choices["train-encoder"].add_argument("--early-stopping-patience", type=int, default=None)
+    sub.choices["train-encoder"].add_argument("--amp", action=argparse.BooleanOptionalAction, default=None)
+    sub.choices["build-learned-index"].add_argument("--run-id", required=True)
+    sub.choices["build-learned-index"].add_argument("--batch-size", type=int, default=256)
+    sub.choices["evaluate-encoder"].add_argument("--run-id", required=True)
+    sub.choices["evaluate-encoder"].add_argument("--batch-size", type=int, default=256)
+    sub.choices["summarize-encoder-evaluation"].add_argument("--run-id", required=True)
     return p
 
 

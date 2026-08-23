@@ -39,29 +39,39 @@ def search_neighbors(
     exclude_same_score: bool = True,
     same_instrument: bool = False,
     length_ratio: tuple[float, float] | None = None,
+    candidate_split: str | None = None,
 ) -> pd.DataFrame:
-    ids = list(embeddings["phrase_ids"])
+    ids = np.asarray(embeddings["phrase_ids"], dtype=str)
     try:
-        idx = ids.index(query_phrase_id)
-    except ValueError:
+        idx = int(np.flatnonzero(ids == str(query_phrase_id))[0])
+    except Exception:
         raise KeyError(query_phrase_id)
     vecs = embeddings[mode]
+    if "phrase_id" in phrase_df.columns:
+        aligned = phrase_df.copy()
+        aligned["phrase_id"] = aligned["phrase_id"].astype(str)
+        aligned = aligned.set_index("phrase_id").reindex(ids).reset_index()
+    else:
+        aligned = phrase_df.reset_index(drop=True)
+    if len(aligned) != len(ids):
+        raise ValueError("phrase_df and embeddings must align by phrase_id")
     q = vecs[idx:idx + 1]
     sims = vecs @ q.T
     order = np.argsort(-sims[:, 0])
-    rows = phrase_df.reset_index(drop=True)
     out = []
     for i in order:
-        if ids[i] == query_phrase_id:
+        if ids[i] == str(query_phrase_id):
             continue
-        r = rows.iloc[i]
-        if exclude_same_score and r["score_id"] == rows.iloc[idx]["score_id"]:
+        r = aligned.iloc[i]
+        if candidate_split is not None and "split" in aligned.columns and str(r["split"]) != candidate_split:
             continue
-        if same_instrument and str(r["instrument_name"]) != str(rows.iloc[idx]["instrument_name"]):
+        if exclude_same_score and r["score_id"] == aligned.iloc[idx]["score_id"]:
+            continue
+        if same_instrument and str(r["instrument_name"]) != str(aligned.iloc[idx]["instrument_name"]):
             continue
         if length_ratio is not None:
             lo, hi = length_ratio
-            ratio = float(r["n_bars"]) / max(1e-6, float(rows.iloc[idx]["n_bars"]))
+            ratio = float(r["n_bars"]) / max(1e-6, float(aligned.iloc[idx]["n_bars"]))
             if not (lo <= ratio <= hi):
                 continue
         out.append(
@@ -81,4 +91,3 @@ def search_neighbors(
         if len(out) >= k:
             break
     return pd.DataFrame(out)
-

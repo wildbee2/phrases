@@ -29,6 +29,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
+learning = [
+  "torch",
+  "tensorboard",
+]
 
 [tool.setuptools]
 include-package-data = true

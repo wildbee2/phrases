@@ -121,3 +121,21 @@ These cues are weighted and then used in dynamic programming to select phrase se
 - Similarity is not learned from human judgments.
 - Phrase boundaries should be auditioned rather than treated as ground truth.
 
+## Experiment 002
+
+Experiment 002 adds an optional self-supervised phrase encoder built on explicit-voice phrases only.
+
+It keeps the handcrafted phrase index as the control condition and adds a learned retrieval backend, held-out evaluation, and blind human A/B listening.
+
+The key commands are:
+
+```bash
+python -m phrase_lab.cli prepare-encoder-data --root /content/pdmx_data --experiment-config experiments/002_contrastive_encoder/config.yaml
+python -m phrase_lab.cli mine-encoder-positives --root /content/pdmx_data --experiment-config experiments/002_contrastive_encoder/config.yaml
+python -m phrase_lab.cli train-encoder --root /content/pdmx_data --experiment-config experiments/002_contrastive_encoder/config.yaml
+python -m phrase_lab.cli build-learned-index --root /content/pdmx_data --run-id <RUN_ID>
+python -m phrase_lab.cli evaluate-encoder --root /content/pdmx_data --run-id <RUN_ID>
+python -m phrase_lab.cli summarize-encoder-evaluation --root /content/pdmx_data --run-id <RUN_ID>
+```
+
+The learned model is deliberately small, self-supervised, and constrained to musical note events rather than audio generation.
