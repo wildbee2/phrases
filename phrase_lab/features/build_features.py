@@ -15,7 +15,7 @@ from .phrase_features import contour_vector, interval_features, phrase_shape_des
 
 
 def _embed_row(row: pd.Series, contour_steps: int, rhythm_steps: int, interval_clip: int) -> dict[str, np.ndarray]:
-    notes = row["notes_json"]
+    notes = list(row["notes_json"]) if row["notes_json"] is not None else []
     contour = contour_vector(notes, steps=contour_steps)
     intervals = interval_features(notes, clip=interval_clip)
     pc = relative_pitch_class_profile(notes)
