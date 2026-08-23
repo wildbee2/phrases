@@ -12,6 +12,7 @@ from phrase_lab.features.normalize import l2_normalize
 from phrase_lab.index.search import load_embeddings
 from phrase_lab.music.piano_roll import phrase_piano_roll, figure_to_png_bytes
 from phrase_lab.storage.manifest import save_json
+from .dataset import load_prepared_dataset
 from .runs import version_root
 
 
@@ -31,8 +32,14 @@ def _overlaps(a: pd.Series, b: pd.Series) -> bool:
 
 def mine_positive_pairs(root: str | Path, cfg: dict[str, Any]) -> pd.DataFrame:
     root = Path(root)
-    phrases = pd.read_parquet(root / "extracted" / "phrases.parquet")
-    phrases = phrases[phrases["subset:no_license_conflict"].astype(bool) & (phrases["extraction_mode"].astype(str) == "explicit_voice")].copy()
+    try:
+        prepared = load_prepared_dataset(root)
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            "prepared encoder data is required before mining positives; run "
+            "`python -m phrase_lab.cli prepare-encoder-data ...` first"
+        ) from exc
+    phrases = prepared.phrase_metadata.copy()
     if "split" not in phrases.columns:
         raise KeyError("prepared dataset split labels are required before mining positives")
     embeddings = load_embeddings(root / "index")
@@ -102,4 +109,3 @@ def mine_positive_pairs(root: str | Path, cfg: dict[str, Any]) -> pd.DataFrame:
             md.append(f"- length_ratio: {row['length_ratio']:.3f}")
         (out_dir / "mined_positive_pairs_report.md").write_text("\n".join(md), encoding="utf-8")
     return out
-
