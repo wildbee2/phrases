@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import numpy as np
 
 from phrase_lab.app.review_store import append_review
 from phrase_lab.storage.manifest import load_json
@@ -20,6 +21,51 @@ def _load(root: str | Path):
     return store, embeddings
 
 
+def _jsonable(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, tuple):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, np.ndarray):
+        return [_jsonable(v) for v in value.tolist()]
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, Path):
+        return str(value)
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+    return value
+
+
+def _notes_json(value: Any) -> list[dict[str, Any]]:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return []
+    if isinstance(value, str):
+        try:
+            loaded = json.loads(value)
+            return _notes_json(loaded)
+        except Exception:
+            return []
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
+    notes = []
+    for item in value:
+        if isinstance(item, dict):
+            notes.append({str(k): _jsonable(v) for k, v in item.items()})
+    return notes
+
+
+def _phrase_row(row: dict[str, Any]) -> dict[str, Any]:
+    out = {str(k): _jsonable(v) for k, v in row.items()}
+    out["notes_json"] = _notes_json(row.get("notes_json"))
+    return out
+
+
 def _boundary_text(row: dict[str, Any], side: str) -> str:
     score = row.get(f"{side}_boundary_score", 0.0)
     reasons = row.get(f"{side}_boundary_reasons_json", {}) or {}
@@ -33,11 +79,12 @@ def _boundary_text(row: dict[str, Any], side: str) -> str:
 
 
 def _neighbor_audio(store: PhraseStore, row: dict[str, Any], playback_mode: str, tempo_mode: str, bpm: float):
+    notes = _notes_json(row.get("notes_json"))
     target = None
-    if playback_mode == "match" and row.get("notes_json"):
-        target = int(row["notes_json"][0]["p"])
+    if playback_mode == "match" and notes:
+        target = int(notes[0]["p"])
     neighbor_bpm = bpm if tempo_mode == "fixed" else bpm
-    return synthesize_phrase(row["notes_json"], bpm=neighbor_bpm, target_start_pitch=target)
+    return synthesize_phrase(notes, bpm=neighbor_bpm, target_start_pitch=target)
 
 
 def launch(root: str | Path = "data/raw/PDMX", share: bool = False):
@@ -63,10 +110,11 @@ def launch(root: str | Path = "data/raw/PDMX", share: bool = False):
     def select_phrase(phrase_id):
         if not phrase_id:
             return {}, None, None, ""
-        row = store.get_phrase(phrase_id)
-        audio = synthesize_phrase(row["notes_json"], bpm=100.0)
+        row = _phrase_row(store.get_phrase(phrase_id))
+        notes = row["notes_json"]
+        audio = synthesize_phrase(notes, bpm=100.0)
         title = f"{row.get('title')} - {row.get('composer_name')}"
-        return row, (audio[1], audio[0]), phrase_piano_roll(row["notes_json"], title=title), _boundary_text(row, "left") + "\n\n" + _boundary_text(row, "right")
+        return row, (audio[1], audio[0]), phrase_piano_roll(notes, title=title), _boundary_text(row, "left") + "\n\n" + _boundary_text(row, "right")
 
     def find_neighbors(phrase_id, mode, exclude_same_score, same_instrument, length_only):
         if not phrase_id:
@@ -88,17 +136,21 @@ def launch(root: str | Path = "data/raw/PDMX", share: bool = False):
         if not neighbor_rows:
             return None, None, ""
         idx = max(0, min(int(rank) - 1, len(neighbor_rows) - 1))
-        row = neighbor_rows[idx]
-        audio = _neighbor_audio(store, row, playback_mode, tempo_mode, bpm)
-        title = f"{row.get('title')} - {row.get('composer')}"
-        return (audio[1], audio[0]), phrase_piano_roll(store.get_phrase(row["phrase_id"])["notes_json"], title=title), json.dumps(json_like(row), indent=2)
+        neighbor_row = _phrase_row(neighbor_rows[idx])
+        phrase_row = _phrase_row(store.get_phrase(neighbor_row["phrase_id"]))
+        phrase_row.update({k: v for k, v in neighbor_row.items() if k not in phrase_row or phrase_row[k] is None})
+        audio = _neighbor_audio(store, phrase_row, playback_mode, tempo_mode, bpm)
+        title = f"{phrase_row.get('title')} - {phrase_row.get('composer')}"
+        return (audio[1], audio[0]), phrase_piano_roll(_notes_json(phrase_row.get("notes_json")), title=title), json.dumps(json_like(phrase_row), indent=2)
 
     def play_ab(query_row, neighbor_rows, rank, playback_mode, tempo_mode, bpm):
         if not query_row or not neighbor_rows:
             return None
-        q_audio = synthesize_phrase(query_row["notes_json"], bpm=bpm, target_start_pitch=(query_row["notes_json"][0]["p"] if playback_mode == "match" and query_row.get("notes_json") else None))
+        query_row = _phrase_row(query_row)
+        q_notes = _notes_json(query_row.get("notes_json"))
+        q_audio = synthesize_phrase(q_notes, bpm=bpm, target_start_pitch=(q_notes[0]["p"] if playback_mode == "match" and q_notes else None))
         idx = max(0, min(int(rank) - 1, len(neighbor_rows) - 1))
-        nrow = neighbor_rows[idx]
+        nrow = _phrase_row(neighbor_rows[idx])
         n_audio = _neighbor_audio(store, nrow, playback_mode, tempo_mode, bpm)
         import numpy as np
 
