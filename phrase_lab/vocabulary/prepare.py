@@ -31,15 +31,15 @@ def _valid_notes(notes: Any) -> bool:
 
 def _filter_counts(phrases: pd.DataFrame, cfg: dict[str, Any]) -> dict[str, int]:
     counts: dict[str, int] = {"total": int(len(phrases))}
+    parsed_notes = phrases["notes_json"].apply(notes_from_any) if "notes_json" in phrases.columns else pd.Series([], dtype=object)
     if "subset:no_license_conflict" in phrases.columns:
         counts["license_ok"] = int(phrases["subset:no_license_conflict"].astype(bool).sum())
     if "extraction_mode" in phrases.columns:
         counts["explicit_voice"] = int((phrases["extraction_mode"].astype(str) == "explicit_voice").sum())
     if "notes_json" in phrases.columns:
         counts["valid_notes"] = int(phrases["notes_json"].apply(_valid_notes).sum())
-    if "n_notes" in phrases.columns:
         counts["note_length_ok"] = int(
-            phrases["n_notes"].astype(float).between(float(cfg["dataset"]["min_notes"]), float(cfg["dataset"]["max_notes"])).sum()
+            parsed_notes.apply(len).between(float(cfg["dataset"]["min_notes"]), float(cfg["dataset"]["max_notes"])).sum()
         )
     if "n_bars" in phrases.columns:
         counts["bar_length_ok"] = int(
@@ -57,9 +57,11 @@ def prepare_vocabulary_data(root: str | Path, cfg: dict[str, Any], max_phrases: 
     if "subset:no_license_conflict" not in phrases.columns:
         raise KeyError("subset:no_license_conflict column is required for Experiment 003")
     filter_counts = _filter_counts(phrases, cfg)
+    parsed_notes = phrases["notes_json"].apply(notes_from_any)
+    note_lengths = parsed_notes.apply(len)
     mask = phrases["subset:no_license_conflict"].astype(bool) & (phrases["extraction_mode"].astype(str) == "explicit_voice")
     mask &= phrases["notes_json"].apply(_valid_notes)
-    mask &= phrases["n_notes"].astype(float).between(float(cfg["dataset"]["min_notes"]), float(cfg["dataset"]["max_notes"]))
+    mask &= note_lengths.between(float(cfg["dataset"]["min_notes"]), float(cfg["dataset"]["max_notes"]))
     mask &= phrases["n_bars"].astype(float).between(float(cfg["dataset"]["min_bars"]), float(cfg["dataset"]["max_bars"]))
     filtered = phrases.loc[mask].copy()
     if max_phrases is not None and len(filtered) > max_phrases:
@@ -84,7 +86,7 @@ def prepare_vocabulary_data(root: str | Path, cfg: dict[str, Any], max_phrases: 
             "no eligible explicit_voice phrases remain after filtering; "
             f"filter_counts={filter_counts}; "
             f"embedding_valid_count={int(valid_mask.sum())}; "
-            "check dataset.min_notes, dataset.max_notes, and the source root"
+            "check dataset.min_notes, dataset.max_notes, note parsing, and the source root"
         )
     eligible["phrase_index"] = eligible["phrase_id"].map(id_to_index).astype(int)
     for space in required_spaces:
