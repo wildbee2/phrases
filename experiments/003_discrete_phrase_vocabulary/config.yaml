@@ -6,7 +6,7 @@ dataset:
   extraction_modes:
     - explicit_voice
   require_no_license_conflict: true
-  min_notes: 6
+  min_notes: 2
   max_notes: 96
   min_bars: 1.0
   max_bars: 12.0
@@ -58,4 +58,3 @@ export:
   token_prefix_rhythm: "R"
   token_prefix_combined: "C"
   token_width: 4
-

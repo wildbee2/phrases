@@ -36,3 +36,4 @@ python -m phrase_lab.cli app --root /content/pdmx_data --share
 
 Experiment 003 is CPU-first and does not require a GPU.
 
+If `prepare-vocabulary-data` returns zero eligible phrases, lower `dataset.min_notes` in `config.yaml` for your corpus and rerun the command.

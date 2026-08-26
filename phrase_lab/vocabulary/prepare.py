@@ -37,6 +37,25 @@ def _valid_notes(notes: Any) -> bool:
     return True
 
 
+def _filter_counts(phrases: pd.DataFrame, cfg: dict[str, Any]) -> dict[str, int]:
+    counts: dict[str, int] = {"total": int(len(phrases))}
+    if "subset:no_license_conflict" in phrases.columns:
+        counts["license_ok"] = int(phrases["subset:no_license_conflict"].astype(bool).sum())
+    if "extraction_mode" in phrases.columns:
+        counts["explicit_voice"] = int((phrases["extraction_mode"].astype(str) == "explicit_voice").sum())
+    if "notes_json" in phrases.columns:
+        counts["valid_notes"] = int(phrases["notes_json"].apply(_valid_notes).sum())
+    if "n_notes" in phrases.columns:
+        counts["note_length_ok"] = int(
+            phrases["n_notes"].astype(float).between(float(cfg["dataset"]["min_notes"]), float(cfg["dataset"]["max_notes"])).sum()
+        )
+    if "n_bars" in phrases.columns:
+        counts["bar_length_ok"] = int(
+            phrases["n_bars"].astype(float).between(float(cfg["dataset"]["min_bars"]), float(cfg["dataset"]["max_bars"])).sum()
+        )
+    return counts
+
+
 def prepare_vocabulary_data(root: str | Path, cfg: dict[str, Any], max_phrases: int | None = None) -> pd.DataFrame:
     root = Path(root)
     phrases_path = root / "extracted" / "phrases.parquet"
@@ -45,6 +64,7 @@ def prepare_vocabulary_data(root: str | Path, cfg: dict[str, Any], max_phrases: 
     phrases = pd.read_parquet(phrases_path)
     if "subset:no_license_conflict" not in phrases.columns:
         raise KeyError("subset:no_license_conflict column is required for Experiment 003")
+    filter_counts = _filter_counts(phrases, cfg)
     mask = phrases["subset:no_license_conflict"].astype(bool) & (phrases["extraction_mode"].astype(str) == "explicit_voice")
     mask &= phrases["notes_json"].apply(_valid_notes)
     mask &= phrases["n_notes"].astype(float).between(float(cfg["dataset"]["min_notes"]), float(cfg["dataset"]["max_notes"]))
@@ -68,7 +88,12 @@ def prepare_vocabulary_data(root: str | Path, cfg: dict[str, Any], max_phrases: 
     eligible = filtered[filtered["phrase_id"].isin(set(phrase_ids[valid_mask]))].copy()
     eligible = eligible.drop_duplicates(subset=["phrase_id"], keep="first").reset_index(drop=True)
     if eligible.empty:
-        raise ValueError("no eligible explicit_voice phrases remain after filtering")
+        raise ValueError(
+            "no eligible explicit_voice phrases remain after filtering; "
+            f"filter_counts={filter_counts}; "
+            f"embedding_valid_count={int(valid_mask.sum())}; "
+            "check dataset.min_notes, dataset.max_notes, and the source root"
+        )
     eligible["phrase_index"] = eligible["phrase_id"].map(id_to_index).astype(int)
     for space in required_spaces:
         eligible[f"{space}_index"] = eligible["phrase_index"]
