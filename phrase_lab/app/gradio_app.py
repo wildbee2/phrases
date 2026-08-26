@@ -88,6 +88,7 @@ def launch(root: str | Path = "data/raw/PDMX", share: bool = False):
     except Exception:
         run_manifest = {}
     learned_runs = available_learned_runs(root)
+    from phrase_lab.app.vocabulary_browser import add_vocabulary_tab
 
     handcrafted_backend = HandcraftedRetrievalBackend(root)
     learned_backend_cache: dict[str, LearnedRetrievalBackend] = {}
@@ -390,5 +391,7 @@ def launch(root: str | Path = "data/raw/PDMX", share: bool = False):
             system_a_btn.click(blind_select_neighbor, [blind_state, system_a_key, system_a_rank], [system_a_audio, system_a_plot, system_a_msg, blind_state])
             system_b_btn.click(blind_select_neighbor, [blind_state, system_b_key, system_b_rank], [system_b_audio, system_b_plot, system_b_msg, blind_state])
             save_vote_btn.click(save_blind_vote, [blind_state, query_state, vote, vote_note, blind_next_state], [vote_msg, blind_seen])
+
+        add_vocabulary_tab(gr, root, store)
 
     demo.launch(share=share)

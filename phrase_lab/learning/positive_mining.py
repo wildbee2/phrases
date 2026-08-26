@@ -91,14 +91,12 @@ def _save_checkpoint(
 
 def mine_positive_pairs(root: str | Path, cfg: dict[str, Any]) -> pd.DataFrame:
     root = Path(root)
+    prepared = None
     try:
         prepared = load_prepared_dataset(root)
-    except FileNotFoundError as exc:
-        raise FileNotFoundError(
-            "prepared encoder data is required before mining positives; run "
-            "`python -m phrase_lab.cli prepare-encoder-data ...` first"
-        ) from exc
-    phrases = prepared.phrase_metadata.copy()
+        phrases = prepared.phrase_metadata.copy()
+    except FileNotFoundError:
+        phrases = pd.read_parquet(root / "extracted" / "phrases.parquet")
     if "split" not in phrases.columns:
         raise KeyError("prepared dataset split labels are required before mining positives")
     embeddings = load_embeddings(root / "index")
@@ -131,7 +129,7 @@ def mine_positive_pairs(root: str | Path, cfg: dict[str, Any]) -> pd.DataFrame:
     out_dir.mkdir(parents=True, exist_ok=True)
     expected_state = {
         "config_hash": _hash_dict(cfg["positive_mining"]),
-        "dataset_manifest_hash": _hash_dict(prepared.dataset_manifest),
+        "dataset_manifest_hash": _hash_dict(prepared.dataset_manifest) if prepared is not None else None,
         "phrase_ids_hash": hashlib.sha1("\n".join(ids.tolist()).encode("utf-8")).hexdigest(),
         "baseline_space": str(cfg["positive_mining"]["baseline_space"]),
     }
@@ -163,8 +161,8 @@ def mine_positive_pairs(root: str | Path, cfg: dict[str, Any]) -> pd.DataFrame:
                 mask[i] = False
                 if same_part_only and group_part_ids is not None:
                     mask &= group_part_ids == str(anchor.get("part_id"))
-                mask &= ~(group_ends <= float(anchor["start_q"]))
-                mask &= ~(group_starts >= float(anchor["end_q"]))
+                non_overlap = (group_ends <= float(anchor["start_q"])) | (group_starts >= float(anchor["end_q"]))
+                mask &= non_overlap
                 with np.errstate(divide="ignore", invalid="ignore"):
                     ratios = group_bars / max(1e-6, float(anchor["n_bars"]))
                 mask &= (ratios >= length_lo) & (ratios <= length_hi)

@@ -139,3 +139,19 @@ python -m phrase_lab.cli summarize-encoder-evaluation --root /content/pdmx_data 
 ```
 
 The learned model is deliberately small, self-supervised, and constrained to musical note events rather than audio generation.
+
+## Experiment 003
+
+Experiment 003 discretizes the handcrafted phrase space into melody and rhythm token vocabularies.
+
+Key commands:
+
+```bash
+python -m phrase_lab.cli prepare-vocabulary-data --root /content/pdmx_data --experiment-config experiments/003_discrete_phrase_vocabulary/config.yaml
+python -m phrase_lab.cli build-vocabulary --root /content/pdmx_data --experiment-config experiments/003_discrete_phrase_vocabulary/config.yaml --space melody --k 512
+python -m phrase_lab.cli build-vocabulary --root /content/pdmx_data --experiment-config experiments/003_discrete_phrase_vocabulary/config.yaml --space rhythm --k 256
+python -m phrase_lab.cli export-phrase-tokens --root /content/pdmx_data --experiment-config experiments/003_discrete_phrase_vocabulary/config.yaml --melody-k 512 --rhythm-k 256
+python -m phrase_lab.cli app --root /content/pdmx_data --share
+```
+
+See [experiments/003_discrete_phrase_vocabulary/README.md](/mnt/c/Users/pvald/OneDrive/Desktop/phrasing/experiments/003_discrete_phrase_vocabulary/README.md) for the full workflow and default configuration.

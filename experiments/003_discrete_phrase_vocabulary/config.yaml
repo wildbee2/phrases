@@ -1,0 +1,61 @@
+experiment:
+  name: "003_discrete_phrase_vocabulary"
+  seed: 42
+
+dataset:
+  extraction_modes:
+    - explicit_voice
+  require_no_license_conflict: true
+  min_notes: 6
+  max_notes: 96
+  min_bars: 1.0
+  max_bars: 12.0
+  max_phrases: null
+
+spaces:
+  melody:
+    enabled: true
+    cluster_sizes: [128, 256, 512, 1024, 2048]
+    primary_cluster_size: 512
+  rhythm:
+    enabled: true
+    cluster_sizes: [64, 128, 256, 512, 1024]
+    primary_cluster_size: 256
+  combined:
+    enabled: true
+    cluster_sizes: [256, 512, 1024]
+    primary_cluster_size: 512
+    role: comparison_only
+
+clustering:
+  algorithm: spherical_minibatch_kmeans
+  batch_size: 8192
+  max_iter: 300
+  n_init: 3
+  reassignment_ratio: 0.01
+  min_cluster_size_for_eval: 10
+  fit_sample_size: null
+
+stability:
+  enabled: true
+  repeated_seeds: [42, 43, 44]
+  sample_size: 100000
+
+evaluation:
+  random_members_per_cluster: 8
+  clusters_to_review_per_size: 40
+  centroid_members_per_cluster: 3
+  hard_negative_centroid_rank_max: 10
+  blind_trials_target: 100
+
+human_gate:
+  min_reviewed_clusters: 40
+  minimum_coherent_fraction: 0.65
+  minimum_decisive_trials: 50
+
+export:
+  token_prefix_melody: "M"
+  token_prefix_rhythm: "R"
+  token_prefix_combined: "C"
+  token_width: 4
+

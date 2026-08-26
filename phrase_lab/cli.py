@@ -323,6 +323,59 @@ def cmd_summarize_encoder_evaluation(args):
     summarize_blind_votes(args.root, args.run_id, cfg)
 
 
+def cmd_prepare_vocabulary_data(args):
+    from phrase_lab.vocabulary.prepare import prepare_vocabulary_data
+
+    cfg = _load_experiment_config(args.experiment_config)
+    prepare_vocabulary_data(args.root, cfg, max_phrases=args.max_phrases)
+
+
+def cmd_build_vocabulary(args):
+    from phrase_lab.vocabulary.codebook import build_codebook
+
+    cfg = _load_experiment_config(args.experiment_config)
+    build_codebook(args.root, cfg, args.space, int(args.k), max_phrases=args.max_phrases, seed=args.seed)
+
+
+def cmd_build_vocabulary_sweep(args):
+    from phrase_lab.vocabulary.codebook import build_vocabulary_sweep
+
+    cfg = _load_experiment_config(args.experiment_config)
+    build_vocabulary_sweep(args.root, cfg, args.space)
+
+
+def cmd_evaluate_vocabulary(args):
+    from phrase_lab.vocabulary.evaluate import summarize_vocabulary_evaluation
+    from phrase_lab.vocabulary.export import compute_quantization_neighbor_preservation
+
+    compute_quantization_neighbor_preservation(args.root, args.space, int(args.k))
+    summarize_vocabulary_evaluation(args.root, args.space, int(args.k))
+
+
+def cmd_compare_vocabulary_sizes(args):
+    from phrase_lab.vocabulary.export import compare_vocabulary_sizes
+
+    compare_vocabulary_sizes(args.root, args.space)
+
+
+def cmd_export_phrase_tokens(args):
+    from phrase_lab.vocabulary.export import export_phrase_tokens
+
+    export_phrase_tokens(args.root, int(args.melody_k), int(args.rhythm_k), combined_k=args.combined_k)
+
+
+def cmd_summarize_vocabulary_evaluation(args):
+    from phrase_lab.vocabulary.evaluate import summarize_vocabulary_evaluation
+
+    summarize_vocabulary_evaluation(args.root, args.space, int(args.k))
+
+
+def cmd_vocabulary_report(args):
+    from phrase_lab.vocabulary.export import vocabulary_report
+
+    vocabulary_report(args.root, args.space, int(args.k))
+
+
 def build_parser():
     p = argparse.ArgumentParser(prog="phrase_lab")
     p.add_argument("--config", default="configs/default.yaml")
@@ -345,11 +398,13 @@ def build_parser():
     sub.choices["build-index"].add_argument("--phrases", default=None)
     sub.choices["pipeline"].add_argument("--phrases", default=None)
     sub.choices["app"].add_argument("--share", action="store_true")
-    for name in ["prepare-encoder-data", "mine-encoder-positives", "train-encoder", "build-learned-index", "evaluate-encoder", "summarize-encoder-evaluation"]:
+    for name in ["prepare-encoder-data", "mine-encoder-positives", "train-encoder", "build-learned-index", "evaluate-encoder", "summarize-encoder-evaluation", "prepare-vocabulary-data", "build-vocabulary", "build-vocabulary-sweep", "evaluate-vocabulary", "compare-vocabulary-sizes", "export-phrase-tokens", "summarize-vocabulary-evaluation", "vocabulary-report"]:
         sp = sub.add_parser(name)
         sp.add_argument("--root", default="data/raw/PDMX")
     for nm in ["prepare-encoder-data", "mine-encoder-positives", "train-encoder", "evaluate-encoder", "summarize-encoder-evaluation"]:
         sub.choices[nm].add_argument("--experiment-config", default="experiments/002_contrastive_encoder/config.yaml")
+    for nm in ["prepare-vocabulary-data", "build-vocabulary", "build-vocabulary-sweep", "evaluate-vocabulary", "compare-vocabulary-sizes", "export-phrase-tokens", "summarize-vocabulary-evaluation", "vocabulary-report"]:
+        sub.choices[nm].add_argument("--experiment-config", default="experiments/003_discrete_phrase_vocabulary/config.yaml")
     sub.choices["prepare-encoder-data"].add_argument("--max-phrases", type=int, default=None)
     sub.choices["train-encoder"].add_argument("--run-id", default=None)
     sub.choices["train-encoder"].add_argument("--resume", action="store_true")
@@ -370,6 +425,22 @@ def build_parser():
     sub.choices["evaluate-encoder"].add_argument("--run-id", required=True)
     sub.choices["evaluate-encoder"].add_argument("--batch-size", type=int, default=256)
     sub.choices["summarize-encoder-evaluation"].add_argument("--run-id", required=True)
+    sub.choices["prepare-vocabulary-data"].add_argument("--max-phrases", type=int, default=None)
+    sub.choices["build-vocabulary"].add_argument("--space", default="melody")
+    sub.choices["build-vocabulary"].add_argument("--k", type=int, default=512)
+    sub.choices["build-vocabulary"].add_argument("--max-phrases", type=int, default=None)
+    sub.choices["build-vocabulary"].add_argument("--seed", type=int, default=42)
+    sub.choices["build-vocabulary-sweep"].add_argument("--space", default="melody")
+    sub.choices["evaluate-vocabulary"].add_argument("--space", default="melody")
+    sub.choices["evaluate-vocabulary"].add_argument("--k", type=int, default=512)
+    sub.choices["compare-vocabulary-sizes"].add_argument("--space", default="melody")
+    sub.choices["export-phrase-tokens"].add_argument("--melody-k", type=int, default=512)
+    sub.choices["export-phrase-tokens"].add_argument("--rhythm-k", type=int, default=256)
+    sub.choices["export-phrase-tokens"].add_argument("--combined-k", type=int, default=None)
+    sub.choices["summarize-vocabulary-evaluation"].add_argument("--space", default="melody")
+    sub.choices["summarize-vocabulary-evaluation"].add_argument("--k", type=int, default=512)
+    sub.choices["vocabulary-report"].add_argument("--space", default="melody")
+    sub.choices["vocabulary-report"].add_argument("--k", type=int, default=512)
     return p
 
 
