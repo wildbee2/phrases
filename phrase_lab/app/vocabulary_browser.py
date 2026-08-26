@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from phrase_lab.app.review_store import append_vocabulary_blind_trial, append_vocabulary_cluster_review
+from phrase_lab.learning.tokenize import notes_from_any
 from phrase_lab.music.piano_roll import phrase_piano_roll
 from phrase_lab.music.render import synthesize_phrase
 from phrase_lab.storage.phrase_store import PhraseStore
@@ -17,18 +18,7 @@ from phrase_lab.vocabulary.sampling import build_audio_montage, sample_cluster_m
 
 
 def _notes_json(value: Any) -> list[dict[str, Any]]:
-    if value is None or (isinstance(value, float) and pd.isna(value)):
-        return []
-    if isinstance(value, str):
-        try:
-            return _notes_json(json.loads(value))
-        except Exception:
-            return []
-    notes = []
-    for item in value or []:
-        if isinstance(item, dict):
-            notes.append(item)
-    return notes
+    return notes_from_any(value)
 
 
 def _phrase_row(store: PhraseStore, phrase_id: str) -> dict[str, Any]:
