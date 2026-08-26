@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from phrase_lab.index.search import load_embeddings
+from phrase_lab.learning.tokenize import notes_from_any
 from phrase_lab.storage.manifest import save_json
 
 from .manifest import atomic_write_parquet, hash_dict, hash_file, vocabulary_root
@@ -22,19 +23,10 @@ def _git_commit() -> str | None:
 
 
 def _valid_notes(notes: Any) -> bool:
-    if isinstance(notes, str):
-        import json
-
-        try:
-            notes = json.loads(notes)
-        except Exception:
-            return False
-    if not isinstance(notes, list) or not notes:
+    parsed = notes_from_any(notes)
+    if not parsed:
         return False
-    for item in notes:
-        if not isinstance(item, dict) or not all(k in item for k in ("p", "o", "d", "v")):
-            return False
-    return True
+    return all(all(key in note for key in ("p", "o", "d", "v")) for note in parsed)
 
 
 def _filter_counts(phrases: pd.DataFrame, cfg: dict[str, Any]) -> dict[str, int]:
